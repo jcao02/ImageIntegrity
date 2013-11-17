@@ -90,7 +90,14 @@ bool compare_signatures(Mat image1, Mat image2, int type)
 
         edges1 = edges_signature(image1);
         edges2 = edges_signature(image2);
-   
+        if (DEBUG) {
+            namedWindow("Debug");
+            imshow("Debug", edges1);
+            waitKey(0);
+            imshow("Debug", edges2);
+            waitKey(0);
+        }
+
         matchTemplate(edges1, edges2, result, 3);
         minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
 
