@@ -10,7 +10,7 @@
 
 /*Definitions*/
 #define THRESHOLD 0.7
-#define DEBUG 0
+#define DEBUG 1
 /*Namespaces*/
 using namespace cv;
 using namespace std;
@@ -90,16 +90,18 @@ bool compare_signatures(Mat image1, Mat image2, int type)
 
         edges1 = edges_signature(image1);
         edges2 = edges_signature(image2);
-        if (DEBUG) {
+        
+        matchTemplate(edges1, edges2, result, 3);
+        minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
+	
+    	if (DEBUG) {
+	    cout << maxVal << endl;
             namedWindow("Debug");
             imshow("Debug", edges1);
             waitKey(0);
             imshow("Debug", edges2);
             waitKey(0);
         }
-
-        matchTemplate(edges1, edges2, result, 3);
-        minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
 
         if ( maxVal > THRESHOLD ) {
             return true;
