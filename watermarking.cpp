@@ -10,13 +10,11 @@
 #include <algorithm>
 
 /*Definitions*/
-#define THRESHOLD 0.7
-#define THRESHOLD_ALTERATION 0.1
-#define DEBUG 1
+#define THRESHOLD_ALTERATION 0.12
+#define DEBUG 0
 /*Namespaces*/
 using namespace cv;
 using namespace std;
-
 
 
 /*Function to extract edges from an image as a signature*/
@@ -28,77 +26,22 @@ Mat edges_signature(Mat image) {
     return edges;
 }
 
-//Comparison made by counting differents between signatures divided by nxm .... threshold 0.1
-/*Function that calculates difference between two images*/
-int BER(Mat sig1, Mat sig2)
-{
-    int rows, cols, i, j, result;
-    vector< vector<int> > ber;
-
-
-    rows = sig1.rows;
-    cols = sig1.cols;
-    
-    for (i = 0; i < rows; ++i) {
-        for (j = 0; j < cols; ++j) {
-            ber[i][j]= sig1.at<int>(i,j) ^ sig2.at<int>(i,j);
-        }
-    }
-
-    result = countNonZero(ber);
-   
-    return result;
-    
-}
-
-
-/*Function that calculates hamming distance between 2 binary matrix*/
-int hamming_distance(vector< vector<int> > v1, vector< vector<int> > v2)    
-{
-    int n, m, i, j, distance;
-
-    n = v1.size();
-    m = v1[0].size();
-
-    /* Different length return error*/
-    if ( n != v2.size() || m != v2[0].size()) {
-        return -1;
-    }
-
-
-    distance = 0;
-    for (i = 0; i < n; ++i) {
-        for (j = 0; j < m; ++j) {
-            /*XOR between same position elements of both matrix*/
-            if (v1[i][j] ^ v2[i][j] == 1)
-                ++distance; // Counting 1's
-        }
-    }
-
-    return distance;
-}
-
 /*Function that generates signatures applying DCT transformation*/
-vector< vector<int> > generate_signature(Mat image) {
+Mat generate_signature(Mat image) {
     Mat a, b, tmp,dct1, dct2;
-    vector< vector<int> > result;
-    vector<int> vrow;
+    Mat result;
     int i, j, n, m, cmp = 1,
         row, col;
-    double minVal, maxVal;
-    Point minLoc, maxLoc;
+    float coef1, coef2;
 
     // Size of the matrix
-    n = image.size().width;
-    m = image.size().height;
+    n = image.rows;
+    m = image.cols;
 
-    // Initialize vector
-    result = std::vector< vector<int> > (n / 8);
-   
+    result = cv::Mat::zeros(n / 8, m / 4, CV_32FC1);
     row = 0;
     // for to compare 4 size blocks of the image
     for ( i = 0; i < n - 4 && row < n / 8; i += 4 ) {
-        vrow = std::vector< int > (m / 4);
         col = 0;
         for ( j = 0; j < m - 8 && col < m / 4; j += 8) {
             a = image.rowRange(i, i + 4).colRange(j, j + 4);        // Subimage a size 4x4 
@@ -107,53 +50,80 @@ vector< vector<int> > generate_signature(Mat image) {
             dct(a, dct1, 0);    //DCT transformation on image a
             dct(b, dct2, 0);    //DCT transformation on image b
 
-            /*Comparing DCT's transformations*/
-            if (dct1.at<double>(0,0) > dct2.at<double>(0,0)) { 
-                vrow[col++] = 1;
+            coef1 = (float) dct1.at<float>(0,0);
+            coef2 = (float) dct2.at<float>(0,0);
+            //cout << dct1 << " CON " << dct2 << endl;
+            /*Comparing DCT with first DC coefficient*/
+            if (coef1 > coef2) { 
+                result.at<float>(row, col++) = 1.0;
             } else {
-                vrow[col++] = 0;
+                result.at<float>(row, col++) = 0.0;
             }
         }
-        result[row] = vrow;
         ++row;
     }
-            
+
+
     return result;
 }
 
-/*Function that compares signatures between two images*/
-bool compare_signatures(Mat image1, Mat image2, int type)
+/*Locates modifications from image and shows them in the original one*/
+void show_locations(Mat image, Mat xor_matrix, int type)
 {
-    vector< vector<int> > signature1, signature2;
-    Mat YCrCb_img1, YCrCb_img2,
-        edges1, edges2, result;
+    int x, y, i, j,
+        rows, cols, size, dif;
+    Mat act;
+    Point p1, p2;
+    float result;
+
+    rows = xor_matrix.rows;
+    cols = xor_matrix.cols;
+    x = rows / 10;
+    y = cols / 10;
+    size = x * y;
+    result = (float) 560 / size;
+
+    namedWindow("Image alteration");
+
+    for (i = 0; i < rows && i + x < rows; i += x) {
+        for (j = 0; j < cols && j + y < cols; j += y) {
+            act = xor_matrix.rowRange(i, i + x).colRange(j, j + y);
+            dif = countNonZero(act);
+            result = (float) dif / size;
+            if (result > THRESHOLD_ALTERATION) {
+                if (type == 1) {
+                    p1 = Point(i,j);
+                    p2 = Point(i + x, j + y);
+                } else {
+                    p1 = Point(i * 8,j * 4);
+                    p2 = Point((i + x) * 8, (j + y) * 4);
+                }
+                rectangle(image, p1, p2, Scalar(0,0,255));
+
+            }
+
+        }
+    }
+
+    imshow("Image alteration", image);
+    waitKey(0);
+}
+
+/*Function that compares signatures between two images*/
+void compare_signatures(Mat image1, Mat image2, int type)
+{
+    Mat signature1, signature2, differenceM;
+    Mat YCrCb_img1, YCrCb_img2, clon;
     vector<Mat> channels1, channels2;  
-    double maxVal, minVal;
-    Point minLoc, maxLoc;
-    int difference;
+    int diff;
 
+    clon = image1.clone();
 
-
+    /*Type 1 = Edges, Type 2 = DCT*/
     if (type == 1) {
 
-        edges1 = edges_signature(image1);
-        edges2 = edges_signature(image2);
-        
-        matchTemplate(edges1, edges2, result, 3);
-        minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-	
-    	if (DEBUG) {
-	    cout << maxVal << endl;
-            namedWindow("Debug");
-            imshow("Debug", edges1);
-            waitKey(0);
-            imshow("Debug", edges2);
-            waitKey(0);
-        }
-
-        if ( maxVal > THRESHOLD ) {
-            return true;
-        }
+        signature1 = edges_signature(image1);
+        signature2  = edges_signature(image2);
 
     } else {
         /* Changing image scale*/
@@ -168,39 +138,34 @@ bool compare_signatures(Mat image1, Mat image2, int type)
         cv::split(YCrCb_img1, channels1);
         cv::split(YCrCb_img2, channels2);
 
-        /*Generating signatures*/
+        /*Generating signatures with DCT*/
         signature1 = generate_signature(channels1[0]);
         signature2 = generate_signature(channels2[0]);
- 
-        if (DEBUG){
-            cout << "Image 1 ---------------------------------------------------------------------------------------------" << endl;
-            for (std::vector< vector<int> >::const_iterator elem = signature1.begin(); elem != signature1.end(); ++elem) {
-                vector<int> temp;
-                temp = *elem;
-                for (std::vector<int>::const_iterator k = temp.begin(); k != temp.end(); ++k)
-                    cout << *k << " ";
-                cout << endl;
-            }
-
-            cout << "Image 2 ---------------------------------------------------------------------------------------------" << endl;
-            for (std::vector< vector<int> >::const_iterator elem = signature2.begin(); elem != signature2.end(); ++elem) {
-                vector<int> temp;
-                temp = *elem;
-                for (std::vector<int>::const_iterator k = temp.begin(); k != temp.end(); ++k)
-                    cout << *k << " ";
-                cout << endl;
-            }
-        }
-
-        //difference = BER(signature1, signarute2);
-        /*Comparing signatures*/
-        //if ( distance <= THRESHOLD2 )
-            //return true;
-
-
     }
 
-    return false;
+    /*XOR to get missmatches between images*/
+    differenceM = signature1 ^ signature2;
+
+    /*Quantity of missmatches*/
+    diff = countNonZero(differenceM);
+
+    /*Same image, nothing to do*/
+    if (diff == 0) {
+        cout << "Exact same image, nothing to compute" << endl;
+        return;
+    }
+
+    if (DEBUG) {
+        namedWindow("Debug");
+        imshow("Debug",clon);
+        waitKey(0);
+    }
+    
+
+   /*Show image alterations*/
+    show_locations(clon, differenceM, type);
+
+
 }
 
 /*Print options to user*/
@@ -271,12 +236,7 @@ int main(int argc, const char *argv[]) {
     /*Get the input from the user*/
     type = get_input();
 
-    if ( compare_signatures(image1, image2, type) )
-
-        cout << "Same image" << endl;
-    else
-
-        cout << "Different image" << endl;
+    compare_signatures(image1, image2, type);
 
 }
 
