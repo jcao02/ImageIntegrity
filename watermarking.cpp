@@ -45,8 +45,8 @@ Mat generate_signature(Mat image) {
             a = image.rowRange(i * 4, (i + 1) * 4).colRange(j * 4 , (j + 1) * 4);        // Subimage a size 4x4 
             b = image.rowRange(i * 4, (i + 1) * 4).colRange((j + 1) * 4 , (j + 2) * 4);        // Subimage a size 4x4 
 
-            dct(a, dct1, DCT_ROWS);    //DCT transformation on image a
-            dct(b, dct2, DCT_ROWS);    //DCT transformation on image b
+            dct(a, dct1);    //DCT transformation on image a
+            dct(b, dct2);    //DCT transformation on image b
 
             coef1 = (float) dct1.at<float>(0,0);
             coef2 = (float) dct2.at<float>(0,0);
@@ -57,11 +57,11 @@ Mat generate_signature(Mat image) {
             if (coef1 > coef2) { 
                 //cout << "-> 1" ;
                 //cout << ", Pos: " << i << ", " << j << endl;
-                result.at<float>(i, j) = 1.0;
+                result.at<float>(j, i) = 1.0;
             } else {
                 //cout << "-> 0";
                 //cout << ", Pos: " << i << ", " << j << endl;
-                result.at<float>(i, j) = 0.0;
+                result.at<float>(j, i) = 0.0;
             }
         }
     }
@@ -113,7 +113,7 @@ void show_locations(Mat image, Mat xor_matrix, int type)
     }
 
     imshow("Image alteration", image);
-    waitKey(0);
+    cvMoveWindow("Image alteration", 1000, 0);
 }
 
 /*Function that compares signatures between two images*/
@@ -256,7 +256,15 @@ int main(int argc, const char *argv[]) {
     /*Get the input from the user*/
     type = get_input();
 
+    namedWindow("Original");
+    imshow("Original", image1);
+    waitKey(0);
+    namedWindow("Modified");
+    imshow("Modified", image2);
+    cvMoveWindow("Original", 0 , 0);
+    cvMoveWindow("Modified", 0 , 0);
     compare_signatures(image1, image2, type);
+    waitKey(0);
 
 }
 
