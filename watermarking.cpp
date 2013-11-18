@@ -10,7 +10,7 @@
 #include <algorithm>
 
 /*Definitions*/
-#define THRESHOLD_ALTERATION 0.12
+#define THRESHOLD_ALTERATION 0.3
 #define DEBUG 0
 /*Namespaces*/
 using namespace cv;
@@ -35,33 +35,37 @@ Mat generate_signature(Mat image) {
     float coef1, coef2;
 
     // Size of the matrix
-    n = image.rows;
-    m = image.cols;
+    n = image.cols;
+    m = image.rows;
 
-    result = cv::Mat::zeros(n / 8, m / 4, CV_32FC1);
-    row = 0;
+    result = cv::Mat::zeros(m / 4, n / 4, CV_32FC1);
     // for to compare 4 size blocks of the image
-    for ( i = 0; i < n - 4 && row < n / 8; i += 4 ) {
-        col = 0;
-        for ( j = 0; j < m - 8 && col < m / 4; j += 8) {
-            a = image.rowRange(i, i + 4).colRange(j, j + 4);        // Subimage a size 4x4 
-            b = image.rowRange(i, i + 4).colRange(j + 4, j + 8);    // Subimage b size 4x4 
+    for (i = 0; i < (m / 4); ++i) {
+        for (j = 0; j < (n / 4) - 2; ++j) {
+            a = image.rowRange(i * 4, (i + 1) * 4).colRange(j * 4 , (j + 1) * 4);        // Subimage a size 4x4 
+            b = image.rowRange(i * 4, (i + 1) * 4).colRange((j + 1) * 4 , (j + 2) * 4);        // Subimage a size 4x4 
 
-            dct(a, dct1, 0);    //DCT transformation on image a
-            dct(b, dct2, 0);    //DCT transformation on image b
+            dct(a, dct1, DCT_ROWS);    //DCT transformation on image a
+            dct(b, dct2, DCT_ROWS);    //DCT transformation on image b
 
             coef1 = (float) dct1.at<float>(0,0);
             coef2 = (float) dct2.at<float>(0,0);
-            //cout << dct1 << " CON " << dct2 << endl;
+
+
+            if (DEBUG) cout << coef1 << ", " << coef2;
             /*Comparing DCT with first DC coefficient*/
             if (coef1 > coef2) { 
-                result.at<float>(row, col++) = 1.0;
+                //cout << "-> 1" ;
+                //cout << ", Pos: " << i << ", " << j << endl;
+                result.at<float>(i, j) = 1.0;
             } else {
-                result.at<float>(row, col++) = 0.0;
+                //cout << "-> 0";
+                //cout << ", Pos: " << i << ", " << j << endl;
+                result.at<float>(i, j) = 0.0;
             }
         }
-        ++row;
     }
+
 
 
     return result;
@@ -78,25 +82,28 @@ void show_locations(Mat image, Mat xor_matrix, int type)
 
     rows = xor_matrix.rows;
     cols = xor_matrix.cols;
-    x = rows / 10;
-    y = cols / 10;
+    //x = rows / 10;
+    //y = cols / 10;
+    x = y = 4;
     size = x * y;
-    result = (float) 560 / size;
 
     namedWindow("Image alteration");
 
-    for (i = 0; i < rows && i + x < rows; i += x) {
-        for (j = 0; j < cols && j + y < cols; j += y) {
+    for (i = 0; i + x < rows  ; ++i) {
+        for (j = 0; j + y < cols; ++j) {
+
+            /*Getting block from signature*/
             act = xor_matrix.rowRange(i, i + x).colRange(j, j + y);
             dif = countNonZero(act);
             result = (float) dif / size;
+
             if (result > THRESHOLD_ALTERATION) {
                 if (type == 1) {
                     p1 = Point(i,j);
                     p2 = Point(i + x, j + y);
                 } else {
-                    p1 = Point(i * 8,j * 4);
-                    p2 = Point((i + x) * 8, (j + y) * 4);
+                    p1 = Point(i * 4,j * 4);
+                    p2 = Point((i + x) * 4, (j + y) * 4);
                 }
                 rectangle(image, p1, p2, Scalar(0,0,255));
 
@@ -143,8 +150,20 @@ void compare_signatures(Mat image1, Mat image2, int type)
         signature2 = generate_signature(channels2[0]);
     }
 
-    /*XOR to get missmatches between images*/
+
+    //cout << "Pos: " << signature2.rows << ", " << signature2.cols << endl;
+    //cout << signature2 << endl;
+   /*XOR to get missmatches between images*/
     differenceM = signature1 ^ signature2;
+
+    if (DEBUG) {
+        cout << "M1: " << endl << " ";
+        cout << signature1 << endl;
+        cout << "M2: " << endl << " ";
+        cout << signature2 << endl;
+        cout << "M3: " << endl << " ";
+        cout << differenceM << endl;
+    }
 
     /*Quantity of missmatches*/
     diff = countNonZero(differenceM);
@@ -203,6 +222,7 @@ int main(int argc, const char *argv[]) {
     vector<Mat> channels1, channels2;  
     int type;
     Size s;
+    Mat out;
 
 
     /* Cantidad de argumentos */
