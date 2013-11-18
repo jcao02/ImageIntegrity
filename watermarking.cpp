@@ -23,6 +23,8 @@ Mat edges_signature(Mat image) {
     
     Canny(image, edges, 20, 20*3);
 
+    transpose(edges, edges);
+
     return edges;
 }
 
