@@ -10,30 +10,38 @@
 #include <algorithm>
 
 /*Definitions*/
-#define THRESHOLD_ALTERATION 0.3
+#define THRESHOLD 0.5
 #define DEBUG 0
 /*Namespaces*/
 using namespace cv;
 using namespace std;
 
 
-/*Function to extract edges from an image as a signature*/
+////////////////////////////////////////// FALTA CHEQUEO DE ERRORES Y MAS MODULARIZACION
+
+
+/*
+ * Function to extract edges from an image as a signature
+ */
 Mat edges_signature(Mat image) {
     Mat edges;
     
+    /*Canny gets edges from image*/
     Canny(image, edges, 20, 20*3);
 
+    /*Transposition in order to show the right modifitacions*/
     transpose(edges, edges);
 
     return edges;
 }
 
-/*Function that generates signatures applying DCT transformation*/
+/*
+ *Function that generates signatures applying DCT transformation
+ */
 Mat generate_signature(Mat image) {
-    Mat a, b, tmp,dct1, dct2;
+    Mat a, b, dct1, dct2;
     Mat result;
-    int i, j, n, m, cmp = 1,
-        row, col;
+    int i, j, n, m;
     float coef1, coef2;
 
     // Size of the matrix
@@ -44,8 +52,8 @@ Mat generate_signature(Mat image) {
     // for to compare 4 size blocks of the image
     for (i = 0; i < (m / 4); ++i) {
         for (j = 0; j < (n / 4) - 2; ++j) {
-            a = image.rowRange(i * 4, (i + 1) * 4).colRange(j * 4 , (j + 1) * 4);        // Subimage a size 4x4 
-            b = image.rowRange(i * 4, (i + 1) * 4).colRange((j + 1) * 4 , (j + 2) * 4);        // Subimage a size 4x4 
+            a = image.rowRange(i * 4, (i + 1) * 4).colRange(j * 4 , (j + 1) * 4);           // Subimage a size 4x4 
+            b = image.rowRange(i * 4, (i + 1) * 4).colRange((j + 1) * 4 , (j + 2) * 4);     // Subimage a size 4x4 
 
             dct(a, dct1);    //DCT transformation on image a
             dct(b, dct2);    //DCT transformation on image b
@@ -55,14 +63,11 @@ Mat generate_signature(Mat image) {
 
 
             if (DEBUG) cout << coef1 << ", " << coef2;
+
             /*Comparing DCT with first DC coefficient*/
             if (coef1 > coef2) { 
-                //cout << "-> 1" ;
-                //cout << ", Pos: " << i << ", " << j << endl;
                 result.at<float>(j, i) = 1.0;
             } else {
-                //cout << "-> 0";
-                //cout << ", Pos: " << i << ", " << j << endl;
                 result.at<float>(j, i) = 0.0;
             }
         }
@@ -84,22 +89,23 @@ void show_locations(Mat image, Mat xor_matrix, int type)
 
     rows = xor_matrix.rows;
     cols = xor_matrix.cols;
-    //x = rows / 10;
-    //y = cols / 10;
-    x = y = 4;
+    x = y = 4;   // Small size for better look
     size = x * y;
 
-    namedWindow("Image alteration");
+    namedWindow("Attack detections");
 
+    /*Loop to access the BER matrix*/
     for (i = 0; i + x < rows  ; ++i) {
         for (j = 0; j + y < cols; ++j) {
 
-            /*Getting block from signature*/
+            /*Getting block, and number of errors from BER matrix*/
             act = xor_matrix.rowRange(i, i + x).colRange(j, j + y);
             dif = countNonZero(act);
             result = (float) dif / size;
 
-            if (result > THRESHOLD_ALTERATION) {
+            /*If the errors av is more than the threshold*/
+            if (result > THRESHOLD) {
+                /*Type 1 = Edges, Type 2 = DCT (Needs Points translation)*/
                 if (type == 1) {
                     p1 = Point(i,j);
                     p2 = Point(i + x, j + y);
@@ -107,18 +113,20 @@ void show_locations(Mat image, Mat xor_matrix, int type)
                     p1 = Point(i * 4,j * 4);
                     p2 = Point((i + x) * 4, (j + y) * 4);
                 }
-                rectangle(image, p1, p2, Scalar(0,0,255));
+                rectangle(image, p1, p2, Scalar(0,0,255)); //Red rectangle on original image
 
             }
 
         }
     }
 
-    imshow("Image alteration", image);
-    cvMoveWindow("Image alteration", 1000, 0);
+    imshow("Attack detections", image);
+    cvMoveWindow("Attack detections", 1000, 0);
 }
 
-/*Function that compares signatures between two images*/
+/*
+ * Function that compares signatures between two images
+ */
 void compare_signatures(Mat image1, Mat image2, int type)
 {
     Mat signature1, signature2, differenceM;
@@ -153,8 +161,6 @@ void compare_signatures(Mat image1, Mat image2, int type)
     }
 
 
-    //cout << "Pos: " << signature2.rows << ", " << signature2.cols << endl;
-    //cout << signature2 << endl;
    /*XOR to get missmatches between images*/
     differenceM = signature1 ^ signature2;
 
@@ -189,7 +195,9 @@ void compare_signatures(Mat image1, Mat image2, int type)
 
 }
 
-/*Print options to user*/
+/*
+ * Function that prints options to the user
+ */
 void print_options()  
 {
     cout << "Select type of signature to use:" << endl;
@@ -198,7 +206,9 @@ void print_options()
     cout << "Your option: ";
 }
 
-/*Get input from user*/
+/*
+ * Function that gets input from the user
+ */
 int get_input()
 {
     int selection;
@@ -210,7 +220,6 @@ int get_input()
         return selection;
     } else {
     
-
         cout << endl << "Selected option not valid!" << endl;
         cout << "--------------------------------" << endl << endl;
         get_input();
@@ -218,7 +227,9 @@ int get_input()
 }
 
 
-/*MAIN*/
+/*
+ * MAIN
+ */
 int main(int argc, const char *argv[]) {
     Mat image1, image2;  
     vector<Mat> channels1, channels2;  
@@ -227,22 +238,27 @@ int main(int argc, const char *argv[]) {
     Mat out;
 
 
-    /* Cantidad de argumentos */
+    /* Number of arguments */
     if (argc != 3) {
         cout << "Usage: ./watermarking image1 image2" << endl;
         return -1;
     }
 
-    /*Se lee la imagen*/
+    /*Reading images*/
     image1 = imread(argv[1], CV_LOAD_IMAGE_COLOR);
     image2 = imread(argv[2], CV_LOAD_IMAGE_COLOR);
 
-    /*Si no se recibio ningun dato de la imagen*/
+    /*Error in case of bad input*/
     if (!image1.data || !image2.data) {
         cout << "Could not open or find image" << endl;
         return -1;
     }
 
+    /*Accepting only square images*/
+    if ((image1.cols != image1.rows) || (image2.rows != image2.cols)) {
+        cout << "Images must have NxN size" << endl;
+        return -1;
+    }
 
     if (DEBUG) {
         namedWindow("Debug");
@@ -251,6 +267,7 @@ int main(int argc, const char *argv[]) {
         imshow("Debug", image2);
         waitKey(0);
     }
+
     /*Resizing image2 to image1 size*/
     s = cv::Size(image1.cols, image1.rows);
     resize(image2, image2, s);
@@ -258,20 +275,22 @@ int main(int argc, const char *argv[]) {
     /*Get the input from the user*/
     type = get_input();
 
+    /*Show original image*/
     namedWindow("Original");
     imshow("Original", image1);
     waitKey(0);
+
+    /*Show modified image and then attack detection image*/
     namedWindow("Modified");
     imshow("Modified", image2);
     cvMoveWindow("Original", 0 , 0);
     cvMoveWindow("Modified", 0 , 0);
+
+    /*Compare signatures and show modifications*/
     compare_signatures(image1, image2, type);
+
+    /*Key to end execution*/
     waitKey(0);
+    return 0;
 
 }
-
-
-// XOR between signatures
-// BER between two signatures (to check if its alterated)
-// Subdivide result in 9x9 subblocks (size might change depending on image size) 
-// block > 50% means is alterted
