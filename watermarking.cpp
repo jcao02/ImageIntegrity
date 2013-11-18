@@ -7,9 +7,11 @@
 /*STANDARD LIBRARIES*/
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 /*Definitions*/
 #define THRESHOLD 0.7
+#define THRESHOLD_ALTERATION 0.1
 #define DEBUG 1
 /*Namespaces*/
 using namespace cv;
@@ -26,6 +28,55 @@ Mat edges_signature(Mat image) {
     return edges;
 }
 
+//Comparison made by counting differents between signatures divided by nxm .... threshold 0.1
+/*Function that calculates difference between two images*/
+int BER(Mat sig1, Mat sig2)
+{
+    int rows, cols, i, j, result;
+    vector< vector<int> > ber;
+
+
+    rows = sig1.rows;
+    cols = sig1.cols;
+    
+    for (i = 0; i < rows; ++i) {
+        for (j = 0; j < cols; ++j) {
+            ber[i][j]= sig1.at<int>(i,j) ^ sig2.at<int>(i,j);
+        }
+    }
+
+    result = countNonZero(ber);
+   
+    return result;
+    
+}
+
+
+/*Function that calculates hamming distance between 2 binary matrix*/
+int hamming_distance(vector< vector<int> > v1, vector< vector<int> > v2)    
+{
+    int n, m, i, j, distance;
+
+    n = v1.size();
+    m = v1[0].size();
+
+    /* Different length return error*/
+    if ( n != v2.size() || m != v2[0].size()) {
+        return -1;
+    }
+
+
+    distance = 0;
+    for (i = 0; i < n; ++i) {
+        for (j = 0; j < m; ++j) {
+            /*XOR between same position elements of both matrix*/
+            if (v1[i][j] ^ v2[i][j] == 1)
+                ++distance; // Counting 1's
+        }
+    }
+
+    return distance;
+}
 
 /*Function that generates signatures applying DCT transformation*/
 vector< vector<int> > generate_signature(Mat image) {
@@ -57,11 +108,7 @@ vector< vector<int> > generate_signature(Mat image) {
             dct(b, dct2, 0);    //DCT transformation on image b
 
             /*Comparing DCT's transformations*/
-            
-            matchTemplate(dct1, dct2, tmp, 3);
-            minMaxLoc( tmp, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-
-            if ( maxVal > THRESHOLD ) {
+            if (dct1.at<double>(0,0) > dct2.at<double>(0,0)) { 
                 vrow[col++] = 1;
             } else {
                 vrow[col++] = 0;
@@ -83,6 +130,7 @@ bool compare_signatures(Mat image1, Mat image2, int type)
     vector<Mat> channels1, channels2;  
     double maxVal, minVal;
     Point minLoc, maxLoc;
+    int difference;
 
 
 
@@ -144,8 +192,10 @@ bool compare_signatures(Mat image1, Mat image2, int type)
             }
         }
 
+        //difference = BER(signature1, signarute2);
         /*Comparing signatures*/
-        //DETERMINE WHAT CRITERIUM USE TO COMPARE THE SIGNATURE
+        //if ( distance <= THRESHOLD2 )
+            //return true;
 
 
     }
@@ -229,3 +279,9 @@ int main(int argc, const char *argv[]) {
         cout << "Different image" << endl;
 
 }
+
+
+// XOR between signatures
+// BER between two signatures (to check if its alterated)
+// Subdivide result in 9x9 subblocks (size might change depending on image size) 
+// block > 50% means is alterted
