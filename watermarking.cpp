@@ -81,11 +81,11 @@ Mat generate_signature(Mat image) {
 /*Locates modifications from image and shows them in the original one*/
 void show_locations(Mat image, Mat xor_matrix, int type)
 {
-    int x, y, i, j,
-        rows, cols, size, dif;
+    int x, y, i, j, rows, 
+        matches, cols, size, dif;
     Mat act;
     Point p1, p2;
-    float result;
+    float result, reb;
 
     rows = xor_matrix.rows;
     cols = xor_matrix.cols;
@@ -94,6 +94,7 @@ void show_locations(Mat image, Mat xor_matrix, int type)
 
     namedWindow("Attack detections");
 
+    matches = 0;
     /*Loop to access the BER matrix*/
     for (i = 0; i + x < rows  ; ++i) {
         for (j = 0; j + y < cols; ++j) {
@@ -105,6 +106,7 @@ void show_locations(Mat image, Mat xor_matrix, int type)
 
             /*If the errors av is more than the threshold*/
             if (result > THRESHOLD) {
+                ++matches;
                 /*Type 1 = Edges, Type 2 = DCT (Needs Points translation)*/
                 if (type == 1) {
                     p1 = Point(i,j);
@@ -119,6 +121,10 @@ void show_locations(Mat image, Mat xor_matrix, int type)
 
         }
     }
+
+    reb = (float) matches / ((rows - x) * (cols - x)) ;
+
+    cout << reb << endl;
 
     imshow("Attack detections", image);
     cvMoveWindow("Attack detections", 1000, 0);
@@ -239,8 +245,9 @@ int main(int argc, const char *argv[]) {
 
 
     /* Number of arguments */
-    if (argc != 3) {
-        cout << "Usage: ./watermarking image1 image2" << endl;
+    if (argc != 4) {
+        cout << "Usage: ./watermarking image1 image2 type" << endl << " ";
+        cout << "type: 1 (Egdes signature) 2 (DCT signature)" << endl;
         return -1;
     }
 
@@ -273,14 +280,21 @@ int main(int argc, const char *argv[]) {
     resize(image2, image2, s);
 
     /*Get the input from the user*/
-    type = get_input();
+    //type = get_input();
+    type = atoi(argv[3]);
 
-    /*Show original image*/
+    if ( type > 2 ) {
+        cout << "Usage: ./watermarking image1 image2 type" << endl << " ";
+        cout << "type: 1 (Egdes signature) 2 (DCT signature)" << endl;
+        return -1;
+    }
+
+    //Show original image
     namedWindow("Original");
     imshow("Original", image1);
     waitKey(0);
 
-    /*Show modified image and then attack detection image*/
+    //Show modified image and then attack detection image
     namedWindow("Modified");
     imshow("Modified", image2);
     cvMoveWindow("Original", 0 , 0);
