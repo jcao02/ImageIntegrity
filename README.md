@@ -1,5 +1,5 @@
-ImageWatermarking
-=================
+Content based authentication signature for still images
+=======================================================
 
 Program written in C++ using opencv libraries to extract an image signature 
 using the Edges of the image or the discrete cosine transform (DCT) in order to 
@@ -14,6 +14,19 @@ Requirements
 * Linux environment (Tested on Debian based distributions)
 
 
+Content
+-------
+
+* watermarking.cpp : Main program with functions
+* Examples: folder with input/output examples
+* images: folder with original images and subfolders with differents attacks
+  * Compression: attacks by compression
+  * Gauss: attacks by gauss 
+  * Resized: attacks by resizing
+  * Sharp: attack by sharping
+  * others: other images.
+* generate_ber.py: script for Generate bit error ratio from the image folder using the algorithm.
+* Makefile: to build the app.
 
 Usage
 -----
@@ -21,5 +34,5 @@ Usage
 * Build: make clean; make.
 * Run:
 	* Two image needed: Original image without modifications and the modified image.
-	* ./watermarking path_to_original path_to_modified.
-	* This version only takes NxN square images.
+	* For execution: ./watermarking original_image modified_image signature 
+    * where signature is 1 for Edges based signature or 2 for DCT based signature 
