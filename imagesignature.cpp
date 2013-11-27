@@ -17,9 +17,6 @@ using namespace cv;
 using namespace std;
 
 
-////////////////////////////////////////// FALTA CHEQUEO DE ERRORES Y MAS MODULARIZACION
-
-
 /*
  * Function to extract edges from an image as a signature
  */
@@ -142,25 +139,28 @@ void compare_signatures(Mat image1, Mat image2, int type)
 
     clon = image1.clone();
 
+    /*Only changing image scale if the type is DCT*/
+    if ( type == 2 ) { 
+        image1.convertTo(image1, CV_32FC1);
+        image2.convertTo(image2, CV_32FC1);
+    }
+
+    /*Creating images YCrCb*/
+    cvtColor(image1,YCrCb_img1,CV_BGR2YCrCb);
+    cvtColor(image2,YCrCb_img2,CV_BGR2YCrCb);
+
+    /*Separating channels of each YCrCb image*/
+    cv::split(YCrCb_img1, channels1);
+    cv::split(YCrCb_img2, channels2);
+
+
     /*Type 1 = Edges, Type 2 = DCT*/
     if (type == 1) {
 
-        signature1 = edges_signature(image1);
-        signature2  = edges_signature(image2);
+        signature1 = edges_signature(channels1[0]);
+        signature2  = edges_signature(channels2[0]);
 
     } else {
-        /* Changing image scale*/
-        image1.convertTo(image1, CV_32FC1);
-        image2.convertTo(image2, CV_32FC1);
-
-        /*Creating images YCrCb*/
-        cvtColor(image1,YCrCb_img1,CV_BGR2YCrCb);
-        cvtColor(image2,YCrCb_img2,CV_BGR2YCrCb);
-
-        /*Separating channels of each YCrCb image*/
-        cv::split(YCrCb_img1, channels1);
-        cv::split(YCrCb_img2, channels2);
-
         /*Generating signatures with DCT*/
         signature1 = generate_signature(channels1[0]);
         signature2 = generate_signature(channels2[0]);

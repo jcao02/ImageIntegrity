@@ -17,7 +17,7 @@ Requirements
 Content
 -------
 
-* watermarking.cpp : Main program with functions
+* imagesignature.cpp : Main program with functions
 * Examples: folder with input/output examples
 * images: folder with original images and subfolders with differents attacks
   * Compression: attacks by compression
@@ -34,5 +34,5 @@ Usage
 * Build: make clean; make.
 * Run:
 	* Two image needed: Original image without modifications and the modified image.
-	* For execution: ./watermarking original_image modified_image signature 
+	* For execution: ./imagesignature original_image modified_image signature 
     * where signature is 1 for Edges based signature or 2 for DCT based signature 
